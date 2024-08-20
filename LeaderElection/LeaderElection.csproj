@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Google.Protobuf" Version="3.27.3"/>
+        <PackageReference Include="Grpc.Net.ClientFactory" Version="2.65.0"/>
+        <PackageReference Include="Grpc.Tools" Version="2.65.0" PrivateAssets="All"/>
+    </ItemGroup>
+    <ItemGroup>
+        <Protobuf Include="Proto\auth.proto" GrpcServices="Client" ProtoRoot="Proto"/>
+        <Protobuf Include="Proto\kv.proto" GrpcServices="Client" ProtoRoot="Proto"/>
+        <Protobuf Include="Proto\rpc.proto" GrpcServices="Client" ProtoRoot="Proto"/>
+        <Protobuf Include="Proto\version.proto" GrpcServices="Client" ProtoRoot="Proto"/>
+    </ItemGroup>
+</Project>
