@@ -27,6 +27,11 @@ public class LeaderElection
     /// Object used for waiting and locking
     /// </summary>
     private readonly object _lockObject = new();
+    
+    /// <summary>
+    /// Flag indicating whether the leader election process has completed.
+    /// </summary>
+    private bool _completed = false;
 
     /// <summary>
     /// Initializes the Etcd client and registers current node
@@ -100,6 +105,7 @@ public class LeaderElection
 
             lock (this._lockObject)
             {
+                this._completed = true;
                 Monitor.PulseAll(this._lockObject);
             }
         }
@@ -128,7 +134,10 @@ public class LeaderElection
     {
         lock (this._lockObject)
         {
-            Monitor.Wait(this._lockObject);
+            while (!this._completed)
+            {
+                Monitor.Wait(this._lockObject);
+            }
         }
 
         Console.WriteLine("Execution Completed!");
