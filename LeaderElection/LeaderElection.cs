@@ -24,14 +24,19 @@ public class LeaderElection
     private readonly string _id;
 
     /// <summary>
+    /// Cancellation token source
+    /// </summary>
+    private readonly CancellationTokenSource _cancellationTokenSource = new();
+    
+    /// <summary>
     /// Object used for waiting and locking
     /// </summary>
     private readonly object _lockObject = new();
     
     /// <summary>
-    /// Flag indicating whether the leader election process has completed.
+    /// Flag indicating whether the leader election process has completed
     /// </summary>
-    private bool _completed = false;
+    private bool _completed;
 
     /// <summary>
     /// Initializes the Etcd client and registers current node
@@ -48,8 +53,16 @@ public class LeaderElection
     public static void Main()
     {
         var leaderElection = new LeaderElection();
-        leaderElection.RunLeaderElection();
-        leaderElection.Run();
+
+        try
+        {
+            leaderElection.RunLeaderElection();
+            leaderElection.Run();
+        }
+        finally
+        {
+            leaderElection.ShutDown();
+        }
     }
 
     /// <summary>
@@ -59,8 +72,12 @@ public class LeaderElection
     private string RegisterNode()
     {
         string id = this.GenerateFullKey(Guid.NewGuid().ToString());
-        PutResponse putResponse = this._etcdClient.PutAsync(id, "foo");
-        this._etcdClient.WatchKey(id, putResponse.Header.Revision, this.WatchCallback);
+        PutResponse putResponse = this._etcdClient.Put(id, "foo");
+        this._etcdClient.WatchKey(
+            id, 
+            putResponse.Header.Revision, 
+            this.WatchCallback, 
+            this._cancellationTokenSource.Token);
         Console.WriteLine($"Registered current node with Id: {id}");
 
         return id;
@@ -84,7 +101,11 @@ public class LeaderElection
         {
             int nodeIndex = orderedNodes.TakeWhile(kv => kv.Key.ToStringUtf8() != this._id).Count();
             KeyValue prevKeyValue = orderedNodes[nodeIndex - 1];
-            this._etcdClient.WatchKey(prevKeyValue.Key.ToStringUtf8(), prevKeyValue.ModRevision, this.WatchCallback);
+            this._etcdClient.WatchKey(
+                prevKeyValue.Key.ToStringUtf8(), 
+                prevKeyValue.ModRevision, 
+                this.WatchCallback,
+                this._cancellationTokenSource.Token);
             Console.WriteLine($"I am node {orderedNodes[nodeIndex].Key.ToStringUtf8()} " +
                               $"and I track {prevKeyValue.Key.ToStringUtf8()}");
         }
@@ -141,5 +162,15 @@ public class LeaderElection
         }
 
         Console.WriteLine("Execution Completed!");
+    }
+
+    /// <summary>
+    /// Signal cancellation and perform cleanup
+    /// </summary>
+    private void ShutDown()
+    {
+        this._cancellationTokenSource.Cancel();
+        this._etcdClient.Dispose();
+        this._cancellationTokenSource.Dispose();
     }
 }
